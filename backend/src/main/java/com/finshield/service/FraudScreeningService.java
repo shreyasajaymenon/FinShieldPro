@@ -21,7 +21,6 @@ public class FraudScreeningService {
     private RadixTree phishingRadixTree;
     private List<String> phishingPrefixesList;
     private DisjointSetUnion liveGatewayDsu;
-    private final List<String> recentAmounts = Collections.synchronizedList(new ArrayList<>());
 
     @PostConstruct
     public void initThreatIntelligence() {
@@ -48,7 +47,8 @@ public class FraudScreeningService {
         }
 
         phishingRadixTree = new RadixTree();
-        phishingPrefixesList = new ArrayList<>();Map<String, String> threatPrefixes = Map.of(
+        phishingPrefixesList = new ArrayList<>();
+        Map<String, String> threatPrefixes = Map.of(
             "pmcares-relief", "Fake Govt Relief Phishing",
             "kbc-prize", "Lottery Scam Prefix",
             "rbi-kyc", "Impersonation Handle",
@@ -61,7 +61,6 @@ public class FraudScreeningService {
         });
     }
 
-    // REAL-TIME PAYMENT GATEWAY WEBHOOK AUTHORIZATION
     public Map<String, Object> authorizeLivePayment(UpiTransaction tx) {
         long start = System.nanoTime();
         if (tx == null || tx.senderVpa() == null || !tx.senderVpa().contains("@")
@@ -75,9 +74,9 @@ public class FraudScreeningService {
         }
 
         int riskScore = 5;
-        List<String> reasons = new ArrayList<>();List<String> triggeredAlgos = new ArrayList<>();
+        List<String> reasons = new ArrayList<>();
+        List<String> triggeredAlgos = new ArrayList<>();
 
-        // 1. Bloom Filter + HashSet Exact Check
         for (String entity : List.of(tx.senderVpa(), tx.receiverVpa(), tx.deviceId() == null ? "" : tx.deviceId())) {
             if (!entity.isBlank() && bloomFilter.mightContain(entity) && authoritativeBlacklist.contains(entity)) {
                 riskScore += 85;
@@ -86,7 +85,6 @@ public class FraudScreeningService {
             }
         }
 
-        // 2. Radix Tree Phishing Check
         String phishingMatch = phishingRadixTree.matchThreatPrefix(tx.receiverVpa());
         if (phishingMatch != null) {
             riskScore += 75;
@@ -94,7 +92,6 @@ public class FraudScreeningService {
             triggeredAlgos.add("Compressed Radix Tree (Unit 4)");
         }
 
-        // 3. Stateful Live DSU Mule Ring Check
         if (tx.deviceId() != null && !tx.deviceId().isBlank()) {
             liveGatewayDsu.union(tx.senderVpa(), "DEV:" + tx.deviceId());
             liveGatewayDsu.union(tx.receiverVpa(), "DEV:" + tx.deviceId());
@@ -106,7 +103,6 @@ public class FraudScreeningService {
             }
         }
 
-        // 4. High-Value Threshold Check
         if (tx.amountInr() >= 50_000) {
             riskScore += 30;
             reasons.add("High-value transfer above Rs 50,000 threshold");
@@ -130,7 +126,6 @@ public class FraudScreeningService {
         );
     }
 
-    // LOAD REAL KAGGLE PAYSIM DATASET FROM RESOURCES
     public ScreeningResponse screenPaySimDataset() {
         List<UpiTransaction> records = new ArrayList<>();
         try (BufferedReader br = new BufferedReader(
@@ -158,7 +153,8 @@ public class FraudScreeningService {
             return new ScreeningResponse(0, 0, 0, 0, 0, 0, 0.0, Map.of(), List.of(), Map.of());
         }
 
-        Set<String> seenTxIds = new HashSet<>();List<UpiTransaction> validList = new ArrayList<>();
+        Set<String> seenTxIds = new HashSet<>();
+        List<UpiTransaction> validList = new ArrayList<>();
         int invalidCount = 0;
 
         for (UpiTransaction tx : batch) {
@@ -227,7 +223,7 @@ public class FraudScreeningService {
         double[] amounts = validList.stream().mapToDouble(UpiTransaction::amountInr).toArray();
         double p95 = RandomizedQuickselect.findPercentile(amounts, 95.0);
         for (UpiTransaction tx : validList) {
-            if (tx.amountInr() > p95 && tx.amountInr()>= 50_000) {
+            if (tx.amountInr() > p95 && tx.amountInr() >= 50_000) {
                 alerts.add(new FlaggedAlert(tx.txId(), tx.senderVpa(), tx.receiverVpa(),
                     tx.amountInr(), "95th Percentile Whale Spike (> Rs " + Math.round(p95) + ")", "Randomized Quickselect (CO5)"));
             }
@@ -291,7 +287,8 @@ public class FraudScreeningService {
         return results;
     }
 
-    public List<UpiTransaction> generateSyntheticBatch(int count) {List<UpiTransaction> list = new ArrayList<>(count);
+    public List<UpiTransaction> generateSyntheticBatch(int count) {
+        List<UpiTransaction> list = new ArrayList<>(count);
         Random rand = new Random(42);
         for (int i = 0; i < count; i++) {
             if (i % 25 == 0) {
